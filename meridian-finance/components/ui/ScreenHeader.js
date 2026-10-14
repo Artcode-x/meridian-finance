@@ -1,10 +1,10 @@
-import { Ionicons } from "@expo/vector-icons"
-import { useNavigation } from "@react-navigation/native"
-import React from "react"
-import { View, StyleSheet, TextInput } from "react-native"
-import { IconButton } from "./IconButton"
-import { Text } from "./Text"
-import { colors, space, radius, goldAlpha } from "../../theme"
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import React from 'react';
+import { View, StyleSheet, TextInput } from 'react-native';
+import { IconButton } from './IconButton';
+import { Text } from './Text';
+import { colors, space, radius, goldAlpha } from '../../theme';
 
 /**
  * Заголовок экрана. large — крупный титул с подзаголовком; back — кнопка назад;
@@ -20,9 +20,9 @@ export const ScreenHeader = ({
   left,
   search,
   style,
-  children
+  children,
 }) => {
-  const navigation = useNavigation()
+  const navigation = useNavigation();
   return (
     <View style={[styles.wrap, style]}>
       <View style={styles.row}>
@@ -43,7 +43,7 @@ export const ScreenHeader = ({
             )}
             {left}
             {title && (
-              <Text variant={large ? "h1" : "h2"} numberOfLines={1}>
+              <Text variant={large ? 'h1' : 'h2'} numberOfLines={1}>
                 {title}
               </Text>
             )}
@@ -62,7 +62,7 @@ export const ScreenHeader = ({
           <TextInput
             value={search.value}
             onChangeText={search.onChange}
-            placeholder={search.placeholder || "Search"}
+            placeholder={search.placeholder || 'Search'}
             placeholderTextColor={colors.text.tertiary}
             style={styles.input}
             autoCorrect={false}
@@ -76,7 +76,7 @@ export const ScreenHeader = ({
               name='close'
               size={26}
               iconSize={14}
-              onPress={() => search.onChange("")}
+              onPress={() => search.onChange('')}
               haptic={null}
             />
           )}
@@ -84,36 +84,47 @@ export const ScreenHeader = ({
       )}
       {children}
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: space[4], paddingTop: space[3], paddingBottom: space[3] },
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 44 },
-  left: { flexDirection: "row", alignItems: "center", flex: 1 },
-  right: { flexDirection: "row", alignItems: "center", gap: space[2], marginLeft: space[3] },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    // minHeight: 44,
+    minHeight: 61,
+  },
+  left: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  right: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[2],
+    marginLeft: space[3],
+  },
   search: {
     marginTop: space[3],
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     height: 44,
     paddingLeft: space[3],
     paddingRight: space[2],
     borderRadius: radius.md,
     backgroundColor: colors.surface[2],
     borderWidth: 1,
-    borderColor: goldAlpha(0.25)
+    borderColor: goldAlpha(0.25),
   },
   input: {
     flex: 1,
     marginLeft: space[2],
     color: colors.text.primary,
     fontSize: 15,
-    fontFamily: "Manrope_500Medium",
+    fontFamily: 'Manrope_500Medium',
     paddingVertical: 0,
     minWidth: 0,
-    outlineStyle: "none"
-  }
-})
+    outlineStyle: 'none',
+  },
+});
 
-export default ScreenHeader
+export default ScreenHeader;
