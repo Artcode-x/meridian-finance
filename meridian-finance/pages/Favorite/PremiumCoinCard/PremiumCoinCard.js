@@ -1,6 +1,11 @@
-import { Ionicons } from "@expo/vector-icons"
-import React, { memo } from "react"
-import { View, Image, StyleSheet } from "react-native"
+import { Ionicons } from '@expo/vector-icons';
+import React, { memo } from 'react';
+import {
+  View,
+  Image,
+  StyleSheet,
+  useWindowDimensions, // ← добавили
+} from 'react-native';
 import {
   PressableScale,
   Surface,
@@ -9,11 +14,10 @@ import {
   PercentBadge,
   IconButton,
   Badge,
-  Sparkline
-} from "../../../components/ui"
-import { colors, space, goldAlpha, responsive } from "../../../theme"
+  Sparkline,
+} from '../../../components/ui';
+import { colors, space, goldAlpha, responsive } from '../../../theme';
 
-// Карточка актива портфеля: цена, изменение, количество, действия
 const PremiumCoinCard = ({
   item,
   removingCoinId,
@@ -22,19 +26,33 @@ const PremiumCoinCard = ({
   openChartModal,
   openAlertModal,
   openAmountInput,
-  removeFromFav
+  removeFromFav,
 }) => {
-  const isRemoving = removingCoinId === item.id
-  const amount = (userAssets && userAssets[item.id]) || 0
-  const value = amount * (item.current_price || 0)
-  const alerts = priceAlerts.filter((a) => a.coinId === item.id && a.isActive && !a.triggeredAt).length
-  const spark = item.sparkline_in_7d?.price
+  const { width } = useWindowDimensions(); // ← адаптив
+
+  // ширина карточки (2 колонки): экран − боковые padding − 2 margin wrap
+  const cardWidth = (width - space[2] * 2 - space[1] * 4) / 2;
+
+  // адаптивная высота блока Holding (42% от ширины карточки, в пределах 64–84)
+  const holdingHeight = Math.min(Math.max(cardWidth * 0.35, 64), 84); // ←
+
+  const isRemoving = removingCoinId === item.id;
+  const amount = (userAssets && userAssets[item.id]) || 0;
+  const value = amount * (item.current_price || 0);
+  const alerts = priceAlerts.filter(
+    (a) => a.coinId === item.id && a.isActive && !a.triggeredAt,
+  ).length;
+  const spark = item.sparkline_in_7d?.price;
 
   return (
     <PressableScale
       scaleTo={0.975}
       onPress={() => openChartModal(item)}
-      style={[styles.wrap, { width: responsive.gridCardWidth() }, isRemoving && { opacity: 0.4 }]}
+      style={[
+        styles.wrap,
+        { width: responsive.gridCardWidth() },
+        isRemoving && { opacity: 0.4 },
+      ]}
     >
       <Surface variant='goldCase' radius='lg' shadow='card' style={{ flex: 1 }}>
         <View style={styles.inner}>
@@ -47,16 +65,26 @@ const PremiumCoinCard = ({
                 {item.symbol?.toUpperCase()}
               </Text>
               <View style={styles.rankRow}>
-                <Text variant='small' color='tertiary' numberOfLines={1} style={{ flexShrink: 1 }}>
+                <Text
+                  variant='small'
+                  color='tertiary'
+                  numberOfLines={1}
+                  style={{ flexShrink: 1 }}
+                >
                   {item.name}
                 </Text>
                 {item.market_cap_rank <= 10 && (
-                  <Ionicons name='diamond' size={10} color={colors.gold[400]} style={{ marginLeft: 4 }} />
+                  <Ionicons
+                    name='diamond'
+                    size={10}
+                    color={colors.gold[400]}
+                    style={{ marginLeft: 4 }}
+                  />
                 )}
               </View>
             </View>
             <IconButton
-              name={alerts ? "notifications" : "notifications-outline"}
+              name={alerts ? 'notifications' : 'notifications-outline'}
               size={30}
               iconSize={14}
               active={alerts > 0}
@@ -66,8 +94,16 @@ const PremiumCoinCard = ({
 
           <View style={styles.priceRow}>
             <View style={{ flex: 1 }}>
-              <PriceText value={item.current_price} variant='mono' numberOfLines={1} adjustsFontSizeToFit />
-              <PercentBadge value={item.price_change_percentage_24h} style={{ marginTop: 4 }} />
+              <PriceText
+                value={item.current_price}
+                variant='mono'
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              />
+              <PercentBadge
+                value={item.price_change_percentage_24h}
+                style={{ marginTop: 4 }}
+              />
             </View>
             {spark && <Sparkline data={spark} width={64} height={26} />}
           </View>
@@ -76,7 +112,7 @@ const PremiumCoinCard = ({
             scaleTo={0.97}
             haptic='selection'
             onPress={() => openAmountInput(item)}
-            style={styles.holding}
+            style={[styles.holding, { minHeight: holdingHeight }]} // ← адаптив
           >
             <View style={{ flex: 1 }}>
               <Text variant='label' color='tertiary'>
@@ -90,7 +126,7 @@ const PremiumCoinCard = ({
                   <PriceText value={value} money variant='bodyStrong' numberOfLines={1} />
                 </>
               ) : (
-                <Text variant='caption' color='secondary'>
+                <Text variant='caption' color='secondary' numberOfLines={1}>
                   Tap to add amount
                 </Text>
               )}
@@ -100,7 +136,11 @@ const PremiumCoinCard = ({
 
           <View style={styles.footer}>
             {alerts > 0 ? (
-              <Badge tone='gold' icon='notifications' label={`${alerts} alert${alerts > 1 ? "s" : ""}`} />
+              <Badge
+                tone='gold'
+                icon='notifications'
+                label={`${alerts} alert${alerts > 1 ? 's' : ''}`}
+              />
             ) : (
               <View />
             )}
@@ -116,38 +156,44 @@ const PremiumCoinCard = ({
         </View>
       </Surface>
     </PressableScale>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   wrap: { margin: space[1] },
   inner: { padding: space[3] },
-  header: { flexDirection: "row", alignItems: "center" },
-  rankRow: { flexDirection: "row", alignItems: "center" },
+  header: { flexDirection: 'row', alignItems: 'center' },
+  rankRow: { flexDirection: 'row', alignItems: 'center' },
   logoWrap: {
     width: 36,
     height: 36,
     borderRadius: 0,
     backgroundColor: colors.bg[3],
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: goldAlpha(0.35)
+    borderColor: goldAlpha(0.35),
   },
   logo: { width: 26, height: 26, borderRadius: 13 },
-  priceRow: { flexDirection: "row", alignItems: "center", marginTop: space[3] },
+  priceRow: { flexDirection: 'row', alignItems: 'center', marginTop: space[3] },
   holding: {
-    flexDirection: "row",
-    alignItems: "center",
+    // minHeight убрали — теперь задаётся адаптивно в компоненте
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: space[3],
     padding: space[2],
     paddingHorizontal: space[3],
     borderRadius: 0,
     backgroundColor: goldAlpha(0.08),
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: goldAlpha(0.3)
+    borderColor: goldAlpha(0.3),
   },
-  footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: space[3] }
-})
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: space[3],
+  },
+});
 
-export default memo(PremiumCoinCard)
+export default memo(PremiumCoinCard);
