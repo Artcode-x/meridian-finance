@@ -54,7 +54,7 @@ const CandlestickChart = ({
 
   const currentLimit = limit;
 
-  const margin = { top: 15, right: 15, bottom: 15, left: 45 };
+  const margin = { top: 15, right: 15, bottom: 28, left: 45 };
   const innerWidth = chartWidth - margin.left - margin.right;
   const innerHeight = chartHeight - margin.top - margin.bottom;
 
@@ -95,7 +95,7 @@ const CandlestickChart = ({
   const priceRange = maxPrice - minPrice || 1;
 
   const xScale = (index) =>
-    margin.left + (index / Math.max(1, displayData.length - 1)) * innerWidth + 1;
+    margin.left + (index / Math.max(1, displayData.length - 1)) * innerWidth;
 
   const yScale = (price) =>
     margin.top + innerHeight - ((price - minPrice) / priceRange) * innerHeight;
@@ -135,6 +135,46 @@ const CandlestickChart = ({
       dispatch(setDoubleTap());
     }
   };
+
+  const pad2 = (n) => String(n).padStart(2, '0');
+
+  const getTime = (c) => {
+    const t = c.time ?? c.timestamp ?? c.openTime ?? c.t;
+    if (t == null) return null;
+    const n = typeof t === 'number' ? t : new Date(t).getTime();
+    if (isNaN(n)) return null;
+    return n < 1e12 ? n * 1000 : n; // секунды -> мс
+  };
+
+  const generateXAxisLabels = () => {
+    const len = displayData.length;
+    if (len < 2) return [];
+
+    const first = getTime(displayData[0]);
+    const last = getTime(displayData[len - 1]);
+    if (first == null || last == null) return [];
+
+    const intraday = last - first < 24 * 3600 * 1000;
+    const count = Math.min(4, len - 1);
+    const labels = [];
+
+    for (let i = 0; i <= count; i++) {
+      const idx = Math.round((i * (len - 1)) / count);
+      const ts = getTime(displayData[idx]);
+      if (ts == null) continue;
+      const d = new Date(ts);
+      labels.push({
+        text: intraday
+          ? `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+          : `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}`,
+        x: xScale(idx),
+        anchor: i === 0 ? 'start' : i === count ? 'end' : 'middle',
+      });
+    }
+    return labels;
+  };
+
+  const xAxisLabels = generateXAxisLabels();
 
   const generateYAxisLabels = () => {
     const numberOfLabels = 5;
@@ -227,6 +267,8 @@ const CandlestickChart = ({
                           zIndex: 1,
                           backgroundColor: 'transparent',
                           fontSize: RFValue(7),
+                          //
+                          color: 'rgba(255,255,255,0.6)',
                         },
                       ]}
                     >
@@ -310,6 +352,29 @@ const CandlestickChart = ({
                           </G>
                         );
                       })}
+                      {/* Засечки и подписи оси X */}
+                      {xAxisLabels.map((label, index) => (
+                        <G key={`xl-${index}`}>
+                          <Line
+                            x1={label.x}
+                            y1={chartHeight - margin.bottom + 3} // сдвиг начала засечки
+                            x2={label.x}
+                            y2={chartHeight - margin.bottom + 4}
+                            stroke='rgba(255,255,255,0.4)'
+                            strokeWidth='1'
+                          />
+                          <SvgText
+                            x={label.x}
+                            y={chartHeight - margin.bottom + 16}
+                            fill='rgba(255,255,255,0.6)'
+                            // fill='#FFFFFF'
+                            fontSize='9'
+                            textAnchor={label.anchor}
+                          >
+                            {label.text}
+                          </SvgText>
+                        </G>
+                      ))}
                     </Svg>
                   </View>
                 </View>
