@@ -110,7 +110,7 @@ const ModalFavorite = ({ visible, onClose, selectedCoin, chartDays }) => {
 
   const current = prices.length ? prices[prices.length - 1] : null;
   const chartWidth = W - 48;
-  const chartHeight = Math.round(H * 0.3);
+  const chartHeight = Math.round(H * 0.45);
   const tfLabel = TIMEFRAMES.find((t) => t.key === chartDays)?.label;
 
   const rangeStats = [
@@ -214,13 +214,13 @@ const ModalFavorite = ({ visible, onClose, selectedCoin, chartDays }) => {
               <SectionHeader title='Last candle' />
               <StatsGrid items={candleStats} columns={4} />
             </View>
-            <View style={styles.section}>
+            {/* <View style={styles.section}>
               <ChartCard title='Volume' height={110}>
                 <View style={{ paddingHorizontal: space[4] }}>
                   <VolumeChart candles={prices} width={chartWidth - 8} height={96} />
                 </View>
               </ChartCard>
-            </View>
+            </View> */}
           </>
         )}
 
@@ -235,7 +235,7 @@ const ModalFavorite = ({ visible, onClose, selectedCoin, chartDays }) => {
           align='center'
           style={{ marginTop: space[2] }}
         >
-          Candles by Binance · Sentiment by alternative.me
+          · Market sentiment by meridian-finance
         </Text>
       </ScrollView>
     </Sheet>

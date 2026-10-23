@@ -1,7 +1,7 @@
-import React from "react"
-import { View, StyleSheet, ActivityIndicator } from "react-native"
-import { space } from "../../theme"
-import { Surface, Text, Skeleton } from "../ui"
+import React from 'react';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { space } from '../../theme';
+import { Surface, Text, Skeleton } from '../ui';
 
 // Карточка графика с заголовком и состояниями загрузки/пустоты
 export const ChartCard = ({
@@ -9,10 +9,10 @@ export const ChartCard = ({
   right,
   loading,
   empty,
-  emptyText = "Chart data is unavailable",
+  emptyText = 'Chart data is unavailable',
   height = 220,
   children,
-  style
+  style,
 }) => (
   <Surface level={1} radius='lg' style={style}>
     <View style={styles.header}>
@@ -37,19 +37,19 @@ export const ChartCard = ({
       )}
     </View>
   </Surface>
-)
+);
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: space[4],
     paddingTop: space[4],
-    paddingBottom: space[2]
+    paddingBottom: space[2],
   },
   body: { paddingBottom: space[3] },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: space[4] }
-})
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space[4] },
+});
 
-export default ChartCard
+export default ChartCard;
