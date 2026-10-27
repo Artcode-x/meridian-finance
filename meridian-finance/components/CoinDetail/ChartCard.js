@@ -1,12 +1,15 @@
 import React from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { space } from '../../theme';
 import { Surface, Text, Skeleton } from '../ui';
 
-// Карточка графика с заголовком и состояниями загрузки/пустоты
+// Карточка графика: заголовок, подзаголовок, состояния загрузки/пустоты, футер
 export const ChartCard = ({
   title,
+  subtitle,
   right,
+  footer,
   loading,
   empty,
   emptyText = 'Chart data is unavailable',
@@ -16,19 +19,33 @@ export const ChartCard = ({
 }) => (
   <Surface level={1} radius='lg' style={style}>
     <View style={styles.header}>
-      <Text variant='label' color='gold'>
-        {title}
-      </Text>
+      <View>
+        <Text variant='label' color='gold'>
+          {title}
+        </Text>
+        {subtitle ? (
+          <Text variant='small' color='tertiary' style={styles.subtitle}>
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
       {right}
     </View>
+
     <View style={[styles.body, { minHeight: height }]}>
       {loading ? (
         <View style={styles.center}>
-          <Skeleton width='90%' height={height - 40} radius='md' />
+          <Skeleton width='100%' height={height - 40} radius='md' />
         </View>
       ) : empty ? (
         <View style={styles.center}>
-          <Text variant='caption' color='tertiary' align='center'>
+          <Ionicons name='analytics-outline' size={28} color='#8A8A8A' />
+          <Text
+            variant='caption'
+            color='tertiary'
+            align='center'
+            style={styles.emptyText}
+          >
             {emptyText}
           </Text>
         </View>
@@ -36,6 +53,9 @@ export const ChartCard = ({
         children
       )}
     </View>
+
+    {!loading && !empty ? footer : null}
+    <View style={{ height: space[3] }} />
   </Surface>
 );
 
@@ -48,8 +68,10 @@ const styles = StyleSheet.create({
     paddingTop: space[4],
     paddingBottom: space[2],
   },
-  body: { paddingBottom: space[3] },
+  subtitle: { marginTop: 2 },
+  body: { paddingBottom: space[1] },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space[4] },
+  emptyText: { marginTop: space[2] },
 });
 
 export default ChartCard;

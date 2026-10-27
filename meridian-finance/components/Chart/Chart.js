@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, ScrollView, StyleSheet, Dimensions } from 'react-native';
+import { View, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { setChartDaysMain } from '../../store/reducersSlice';
 import { mainDaySelector } from '../../store/toolkitSelectors';
@@ -13,6 +13,8 @@ import {
 } from '../CoinDetail';
 import { Sheet, Text, Badge, SectionHeader, formatPrice } from '../ui';
 
+import { formatAxisPrice, signedPct } from './utils/chartFormat';
+
 const TIMEFRAMES = [
   { label: '24H', value: 1 },
   { label: '7D', value: 7 },
@@ -21,13 +23,15 @@ const TIMEFRAMES = [
 ];
 
 const compact = (num) => {
-  if (!num && num !== 0) return '—';
+  if (num == null || Number.isNaN(num)) return '—';
   if (num >= 1e12) return `${(num / 1e12).toFixed(2)}T`;
   if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
   if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
   if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K`;
   return num.toFixed(2);
 };
+
+const toneOf = (v) => (v == null ? undefined : v >= 0 ? 'up' : 'down');
 
 // Детальный лист монеты с рынка: линейный график + статистика
 export const Chart = ({
@@ -39,8 +43,12 @@ export const Chart = ({
 }) => {
   const chartDays = useSelector(mainDaySelector);
   const dispatch = useDispatch();
-  const { width } = Dimensions.get('window');
+  const { width } = useWindowDimensions();
 
+  const chartWidth = width - 48;
+  const periodLabel = TIMEFRAMES.find((t) => t.value === chartDays)?.label;
+
+  // Тренд + максимум/минимум за выбранный период
   const trend = useMemo(() => {
     const p = chartData?.prices;
     if (!p || p.length < 2) return null;
@@ -49,11 +57,35 @@ export const Chart = ({
     return {
       isUp: last >= first,
       pct: Math.abs(((last - first) / first) * 100).toFixed(2),
+      high: Math.max(...p),
+      low: Math.min(...p),
     };
   }, [chartData]);
 
   const stats = coin
     ? [
+        {
+          label: 'Market cap',
+          value: `$${compact(coin.market_cap)}`,
+          icon: 'layers-outline',
+        },
+        {
+          label: 'Volume 24h',
+          value: `$${compact(coin.total_volume)}`,
+          icon: 'swap-vertical-outline',
+        },
+        {
+          label: '24h change',
+          value: signedPct(coin.price_change_percentage_24h),
+          icon: 'time-outline',
+          tone: toneOf(coin.price_change_percentage_24h),
+        },
+        {
+          label: '7d change',
+          value: signedPct(coin.price_change_percentage_7d_in_currency),
+          icon: 'calendar-outline',
+          tone: toneOf(coin.price_change_percentage_7d_in_currency),
+        },
         {
           label: '24h High',
           value: formatPrice(coin.high_24h),
@@ -67,27 +99,31 @@ export const Chart = ({
           tone: 'down',
         },
         {
-          label: 'Market cap',
-          value: `$${compact(coin.market_cap)}`,
-          icon: 'layers-outline',
-        },
-        {
-          label: 'Volume 24h',
-          value: `$${compact(coin.total_volume)}`,
-          icon: 'swap-vertical-outline',
-        },
-        {
-          label: '7d change',
-          value: `${coin.price_change_percentage_7d_in_currency?.toFixed(2) ?? '—'}%`,
-          icon: 'calendar-outline',
-          tone: (coin.price_change_percentage_7d_in_currency ?? 0) >= 0 ? 'up' : 'down',
-        },
-        {
           label: 'All-time high',
           value: formatPrice(coin.ath),
           icon: 'trophy-outline',
           tone: 'gold',
         },
+        {
+          label: 'From ATH',
+          value: signedPct(coin.ath_change_percentage),
+          icon: 'trending-down-outline',
+          tone: toneOf(coin.ath_change_percentage),
+        },
+      ]
+    : [];
+
+  const hasSupply =
+    coin &&
+    (coin.circulating_supply != null ||
+      coin.total_supply != null ||
+      coin.max_supply != null);
+
+  const supply = hasSupply
+    ? [
+        { label: 'Circulating', value: compact(coin.circulating_supply) },
+        { label: 'Total', value: compact(coin.total_supply) },
+        { label: 'Max', value: coin.max_supply ? compact(coin.max_supply) : '∞' },
       ]
     : [];
 
@@ -110,6 +146,7 @@ export const Chart = ({
         <View style={styles.section}>
           <ChartCard
             title='Price'
+            subtitle={`Last ${periodLabel}`}
             loading={isloading}
             empty={!chartData?.prices?.length}
             right={
@@ -117,15 +154,36 @@ export const Chart = ({
                 <Badge
                   tone={trend.isUp ? 'up' : 'down'}
                   icon={trend.isUp ? 'trending-up' : 'trending-down'}
-                  label={`${trend.pct}% · ${TIMEFRAMES.find((t) => t.value === chartDays)?.label}`}
+                  label={`${trend.isUp ? '+' : '−'}${trend.pct}%`}
                 />
               ) : null
             }
+            footer={
+              trend && !isloading ? (
+                <View style={styles.range}>
+                  <View>
+                    <Text variant='small' color='tertiary'>
+                      Period low
+                    </Text>
+                    <Text variant='caption'>{formatPrice(trend.low)}</Text>
+                  </View>
+                  <View style={styles.rangeRight}>
+                    <Text variant='small' color='tertiary'>
+                      Period high
+                    </Text>
+                    <Text variant='caption'>{formatPrice(trend.high)}</Text>
+                  </View>
+                </View>
+              ) : null
+            }
           >
+            {/* Подписи оси X передаём как есть: их формат и прореживание
+                обрабатывает GoldLineChart */}
             <GoldLineChart
               prices={chartData?.prices}
               labels={chartData?.labelDate}
-              width={width - 48}
+              formatY={formatAxisPrice}
+              width={chartWidth}
               height={210}
             />
           </ChartCard>
@@ -136,32 +194,20 @@ export const Chart = ({
           <StatsGrid items={stats} />
         </View>
 
-        {coin?.market_data && (
+        {hasSupply && (
           <View style={styles.section}>
             <SectionHeader title='Supply' />
-            <StatsGrid
-              items={[
-                {
-                  label: 'Circulating',
-                  value: compact(coin.market_data.circulating_supply),
-                },
-                {
-                  label: 'Total',
-                  value: coin.market_data.total_supply
-                    ? compact(coin.market_data.total_supply)
-                    : '∞',
-                },
-              ]}
-            />
+            <StatsGrid items={supply} />
           </View>
         )}
+
         <Text
           variant='small'
           color='tertiary'
           align='center'
           style={{ marginTop: space[4] }}
         >
-          · Sentiment provided by meridian-finance
+          Market data provided by CoinGecko
         </Text>
       </ScrollView>
     </Sheet>
@@ -171,6 +217,13 @@ export const Chart = ({
 const styles = StyleSheet.create({
   content: { paddingBottom: space[8] },
   section: { paddingHorizontal: space[4], marginBottom: space[4] },
+  range: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: space[4],
+    paddingTop: space[2],
+  },
+  rangeRight: { alignItems: 'flex-end' },
 });
 
 export default Chart;
