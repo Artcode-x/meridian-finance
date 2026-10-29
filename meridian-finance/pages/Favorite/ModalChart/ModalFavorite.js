@@ -105,7 +105,7 @@ const ModalFavorite = ({ visible, onClose, selectedCoin, chartDays }) => {
   }, [selectedCoin]);
 
   useEffect(() => {
-    if (selectedCoin && visible) fetchChartData(selectedCoin, chartDays, 200);
+    if (selectedCoin && visible) fetchChartData(selectedCoin, chartDays, 300);
   }, [chartDays, selectedCoin, visible, flagDoubleTap]);
 
   const current = prices.length ? prices[prices.length - 1] : null;
