@@ -27,6 +27,7 @@ import { styles } from './CandlestickChart.styles';
 import { computeNW } from './indicators/computeNW';
 import { computeMACross } from './indicators/computeMACross';
 import { computePROIndicator } from './indicators/computePROIndicator';
+import { computeAlpha } from './indicators/computeAlpha';
 import { profileBars } from './indicators/profileBars';
 
 // ---------- Константы графика ----------
@@ -132,6 +133,19 @@ const PRO_COLOR_EMA50 = '#00E5FF';
 const PRO_COLOR_BUY = '#00E676';
 const PRO_COLOR_SELL = '#FF1744';
 
+// ---------- ALPHA ----------
+const ALPHA_COLOR_MAIN = '#FFD740';
+const ALPHA_COLOR_MID = '#FFD740';
+const ALPHA_COLOR_SLOW = 'rgba(255,255,255,0.75)';
+const ALPHA_COLOR_BUY = '#00C853';
+const ALPHA_COLOR_SELL = '#FF5252';
+const ALPHA_BOX_OPACITY = 0.14;
+const ALPHA_PILL_W = 38;
+const ALPHA_PILL_H = 12;
+const ALPHA_POINTER = 4;
+// P — pullback, R — reversion, B — breakout, C — EMA-cross
+const ALPHA_SETUP_LETTER = { pullback: 'P', reversion: 'R', breakout: 'B', cross: 'C' };
+
 // ---------- Утилиты ----------
 const formatPrice = (price) => {
   if (price >= 1e6) return `$${(price / 1e6).toFixed(2)}M`;
@@ -203,12 +217,14 @@ const CandlestickChart = ({
   maDefault = false,
   maMode = MA_MODE,
   proDefault = false,
+  alphaDefault = false,
 }) => {
   const [rawOffset, setRawOffset] = useState(0);
   const [showNW, setShowNW] = useState(nwDefault);
   const [showVP, setShowVP] = useState(SHOW_VOLUME_PROFILE);
   const [showMA, setShowMA] = useState(maDefault);
   const [showPRO, setShowPRO] = useState(proDefault);
+  const [showALPHA, setShowALPHA] = useState(alphaDefault);
 
   const startOffset = useRef(0);
   const pinchRef = useRef();
@@ -235,6 +251,11 @@ const CandlestickChart = ({
   const pro = useMemo(
     () => (showPRO && data && data.length > 1 ? computePROIndicator(data) : null),
     [showPRO, data],
+  );
+
+  const alpha = useMemo(
+    () => (showALPHA && data && data.length > 1 ? computeAlpha(data) : null),
+    [showALPHA, data],
   );
 
   if (!data || data.length === 0) return null;
@@ -287,6 +308,25 @@ const CandlestickChart = ({
       if (v200 != null) {
         if (v200 < minPrice) minPrice = v200;
         if (v200 > maxPrice) maxPrice = v200;
+      }
+    }
+  }
+
+  if (alpha) {
+    for (const s of [alpha.mid, alpha.slow]) {
+      for (let k = 0; k < displayData.length; k++) {
+        const v = s[start + k];
+        if (v == null) continue;
+        if (v < minPrice) minPrice = v;
+        if (v > maxPrice) maxPrice = v;
+      }
+    }
+    // Уровни открытой сделки тоже должны попадать в видимую область
+    const ot = alpha.openTrade;
+    if (ot) {
+      for (const v of [ot.stop, ot.target]) {
+        if (v < minPrice) minPrice = v;
+        if (v > maxPrice) maxPrice = v;
       }
     }
   }
@@ -543,6 +583,73 @@ const CandlestickChart = ({
         })
     : [];
 
+  // ===== 3.4 ALPHA =====
+  const alphaPaths = alpha
+    ? {
+        mid: buildMAPath(alpha.mid),
+        slow: buildMAPath(alpha.slow),
+      }
+    : null;
+
+  // Боксы сделок (как «позиция» в TradingView): зелёный — до тейка, красный — до стопа
+  const alphaBoxes = [];
+  if (alpha) {
+    const from = start;
+    const to = start + displayData.length - 1;
+    for (const t of alpha.trades) {
+      const end = t.exitIndex ?? data.length - 1;
+      if (end < from || t.entryIndex > to) continue;
+      const x1 = xScale(Math.max(t.entryIndex, from) - start);
+      const x2 = xScale(Math.min(end, to) - start);
+      const yE = yScale(t.entry);
+      const yS = yScale(t.initialStop);
+      const yT = yScale(t.target);
+      alphaBoxes.push({
+        key: `alpha-box-${t.entryIndex}`,
+        x: x1,
+        w: Math.max(1, x2 - x1),
+        tpY: Math.min(yE, yT),
+        tpH: Math.abs(yE - yT),
+        slY: Math.min(yE, yS),
+        slH: Math.abs(yE - yS),
+      });
+    }
+  }
+
+  const alphaSignals = alpha
+    ? alpha.signals
+        .filter((s) => s.index >= start && s.index < start + displayData.length)
+        .map((s) => {
+          const candle = data[s.index];
+          const x = xScale(s.index - start);
+          const isBuy = s.type === 'buy';
+          const gap = 5 + (showNW ? 10 : 0) + (showMA ? 10 : 0) + (showPRO ? 18 : 0);
+          const apex = isBuy ? yScale(candle.low) + gap : yScale(candle.high) - gap;
+          let pillY = isBuy ? apex + ALPHA_POINTER : apex - ALPHA_POINTER - ALPHA_PILL_H;
+          pillY = Math.max(
+            MARGIN.top + 1,
+            Math.min(priceBottom - ALPHA_PILL_H - 1, pillY),
+          );
+          const tipY = isBuy
+            ? pillY - ALPHA_POINTER
+            : pillY + ALPHA_PILL_H + ALPHA_POINTER;
+          const baseY = isBuy ? pillY : pillY + ALPHA_PILL_H;
+          return {
+            key: `alpha-${s.index}`,
+            x,
+            pillY,
+            isBuy,
+            pending: s.pending,
+            label: `${isBuy ? 'BUY' : 'SELL'} ${ALPHA_SETUP_LETTER[s.setup] ?? ''}`,
+            points: `${x},${tipY} ${x - 3.5},${baseY} ${x + 3.5},${baseY}`,
+          };
+        })
+    : [];
+
+  const alphaStatsText = alpha
+    ? `ALPHA · ${alpha.stats.trades} trades · win ${alpha.stats.winRate.toFixed(0)}% · PF ${alpha.stats.profitFactor == null ? '—' : alpha.stats.profitFactor.toFixed(2)} · avg ${alpha.stats.avgR.toFixed(2)}R`
+    : '';
+
   // ===== 4. Подписи осей =====
   const yAxisLabels = Array.from({ length: 6 }, (_, i) => {
     const price = minPrice + (priceRange * i) / 5;
@@ -608,6 +715,10 @@ const CandlestickChart = ({
   const togglePRO = () => {
     Haptics.selectionAsync().catch(() => {});
     setShowPRO((v) => !v);
+  };
+  const toggleALPHA = () => {
+    Haptics.selectionAsync().catch(() => {});
+    setShowALPHA((v) => !v);
   };
 
   // ===== 8. Отрисовка =====
@@ -748,6 +859,32 @@ const CandlestickChart = ({
                         </G>
                       )}
 
+                      {/* Боксы сделок ALPHA (под свечами) */}
+                      {alpha && (
+                        <G clipPath='url(#priceClip)'>
+                          {alphaBoxes.map((b) => (
+                            <G key={b.key}>
+                              <Rect
+                                x={b.x}
+                                y={b.tpY}
+                                width={b.w}
+                                height={b.tpH}
+                                fill={GREEN}
+                                opacity={ALPHA_BOX_OPACITY}
+                              />
+                              <Rect
+                                x={b.x}
+                                y={b.slY}
+                                width={b.w}
+                                height={b.slH}
+                                fill={RED}
+                                opacity={ALPHA_BOX_OPACITY}
+                              />
+                            </G>
+                          ))}
+                        </G>
+                      )}
+
                       <G clipPath='url(#plotClip)'>
                         {/* Объёмы */}
                         {hasVolume && (
@@ -856,6 +993,26 @@ const CandlestickChart = ({
                           </G>
                         )}
 
+                        {/* ALPHA — линии EMA50 / EMA200 */}
+                        {alphaPaths && (
+                          <G>
+                            <Path
+                              d={alphaPaths.slow}
+                              stroke={ALPHA_COLOR_SLOW}
+                              strokeWidth='1.5'
+                              strokeDasharray='5,3'
+                              fill='none'
+                            />
+                            <Path
+                              d={alphaPaths.mid}
+                              stroke={ALPHA_COLOR_MID}
+                              strokeWidth='1.2'
+                              fill='none'
+                              opacity={0.8}
+                            />
+                          </G>
+                        )}
+
                         {/* Свечи */}
                         {displayData.map((candle, index) => {
                           const x = xScale(index);
@@ -929,6 +1086,37 @@ const CandlestickChart = ({
                             </SvgText>
                           </G>
                         ))}
+
+                        {/* ALPHA сигналы — плашки BUY / SELL (пустая — свеча ещё не закрыта) */}
+                        {alphaSignals.map((s) => {
+                          const color = s.isBuy ? ALPHA_COLOR_BUY : ALPHA_COLOR_SELL;
+                          return (
+                            <G key={s.key}>
+                              <Polygon points={s.points} fill={color} />
+                              <Rect
+                                x={s.x - ALPHA_PILL_W / 2}
+                                y={s.pillY}
+                                width={ALPHA_PILL_W}
+                                height={ALPHA_PILL_H}
+                                rx={3}
+                                ry={3}
+                                fill={s.pending ? 'rgba(0,0,0,0.6)' : color}
+                                stroke={color}
+                                strokeWidth={s.pending ? 1 : 0}
+                              />
+                              <SvgText
+                                x={s.x}
+                                y={s.pillY + ALPHA_PILL_H - 3.5}
+                                fill='#fff'
+                                fontSize='7.5'
+                                fontWeight='bold'
+                                textAnchor='middle'
+                              >
+                                {s.label}
+                              </SvgText>
+                            </G>
+                          );
+                        })}
 
                         {/* === ОТРИСОВКА СТОП-ЛОССА И ТЕЙК-ПРОФИТА === */}
                         {pro &&
@@ -1020,6 +1208,78 @@ const CandlestickChart = ({
                             );
                           })}
 
+                        {/* === ALPHA: уровни открытой сделки (подписи справа, чтобы не пересекаться с PRO) === */}
+                        {alpha &&
+                          alpha.openTrade &&
+                          (() => {
+                            const t = alpha.openTrade;
+                            const yEntry = yScale(t.entry);
+                            const yStop = yScale(t.stop);
+                            const yTarget = yScale(t.target);
+                            const xr = width - MARGIN.right - 2;
+                            return (
+                              <G key='alpha-levels'>
+                                <Line
+                                  x1={MARGIN.left}
+                                  x2={width - MARGIN.right}
+                                  y1={yStop}
+                                  y2={yStop}
+                                  stroke={RED}
+                                  strokeWidth='1'
+                                  strokeDasharray='4,2'
+                                />
+                                <SvgText
+                                  x={xr}
+                                  y={yStop - 3}
+                                  fill={RED}
+                                  fontSize='8'
+                                  textAnchor='end'
+                                >
+                                  {`${t.be ? 'BE' : 'SL'} ${formatPrice(t.stop)}`}
+                                </SvgText>
+
+                                <Line
+                                  x1={MARGIN.left}
+                                  x2={width - MARGIN.right}
+                                  y1={yTarget}
+                                  y2={yTarget}
+                                  stroke={GREEN}
+                                  strokeWidth='1'
+                                  strokeDasharray='4,2'
+                                />
+                                <SvgText
+                                  x={xr}
+                                  y={yTarget - 3}
+                                  fill={GREEN}
+                                  fontSize='8'
+                                  textAnchor='end'
+                                >
+                                  {`TP ${formatPrice(t.target)}`}
+                                </SvgText>
+
+                                <Line
+                                  x1={MARGIN.left}
+                                  x2={width - MARGIN.right}
+                                  y1={yEntry}
+                                  y2={yEntry}
+                                  stroke={ALPHA_COLOR_MAIN}
+                                  strokeWidth='1'
+                                  opacity={0.7}
+                                />
+                                <SvgText
+                                  x={xr}
+                                  y={yEntry - 3}
+                                  fill={ALPHA_COLOR_MAIN}
+                                  fontSize='8'
+                                  fontWeight='bold'
+                                  textAnchor='end'
+                                >
+                                  {`${t.side === 'buy' ? 'LONG' : 'SHORT'} ${formatPrice(t.entry)} · ${t.setup}`}
+                                </SvgText>
+                              </G>
+                            );
+                          })()}
+
                         {/* Подписи оси X */}
                         {xAxisLabels.map((label, i) => (
                           <G key={`xl-${i}`}>
@@ -1076,6 +1336,19 @@ const CandlestickChart = ({
                           fontSize='8.5'
                         >
                           {maStatsText}
+                        </SvgText>
+                      )}
+
+                      {/* Статистика ALPHA */}
+                      {alpha && (
+                        <SvgText
+                          x={MARGIN.left + 4}
+                          y={MARGIN.top + 9 + (ma ? 10 : 0)}
+                          fill={ALPHA_COLOR_MAIN}
+                          fillOpacity={0.85}
+                          fontSize='8.5'
+                        >
+                          {alphaStatsText}
                         </SvgText>
                       )}
 
@@ -1213,6 +1486,34 @@ const CandlestickChart = ({
                 }}
               >
                 PRO
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={toggleALPHA}
+              activeOpacity={0.6}
+              hitSlop={{ top: 2, bottom: 10, left: 10, right: 10 }}
+              style={{
+                position: 'absolute',
+                top: 93,
+                right: MARGIN.right + 2,
+                paddingHorizontal: 5,
+                paddingVertical: 1,
+                borderRadius: 4,
+                borderWidth: 1,
+                borderColor: ALPHA_COLOR_MAIN,
+                backgroundColor: showALPHA ? 'rgba(255,215,64,0.15)' : 'transparent',
+                opacity: showALPHA ? 0.95 : 0.6,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: RFValue(6),
+                  color: showALPHA ? ALPHA_COLOR_MAIN : 'rgba(255,255,255,0.8)',
+                  fontWeight: 'bold',
+                }}
+              >
+                ALPHA
               </Text>
             </TouchableOpacity>
           </View>
