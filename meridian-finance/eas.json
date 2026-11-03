@@ -1,0 +1,53 @@
+{
+	"cli": {
+		"version": ">= 16.0.0",
+		"appVersionSource": "remote",
+		"requireCommit": false,
+		"promptToConfigurePushNotifications": false
+	},
+	"build": {
+		"development": {
+			"developmentClient": true,
+			"distribution": "internal",
+			"android": {
+				"buildType": "apk",
+				"gradleCommand": ":app:assembleDebug"
+			}
+		},
+		"preview": {
+			"distribution": "internal",
+			"android": {
+				"buildType": "apk",
+				"gradleCommand": ":app:assembleRelease"
+			},
+			"channel": "preview"
+		},
+		"production": {
+			"autoIncrement": true,
+			"distribution": "store",
+			"android": {
+				"buildType": "app-bundle",
+				"image": "latest",
+				"withoutCredentials": false
+			},
+			"channel": "production",
+			"releaseChannel": "default"
+		}
+	},
+	"submit": {
+		"production": {
+			"android": {
+				"serviceAccountKeyPath": "./google-play-key.json",
+				"track": "production",
+				"releaseStatus": "completed",
+				"changesNotSentForReview": false
+			}
+		},
+		"internal": {
+			"android": {
+				"track": "internal",
+				"releaseStatus": "completed"
+			}
+		}
+	}
+}
