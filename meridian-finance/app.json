@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#0A0A0F"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "plugins": [
       [
         "expo-notifications",
@@ -22,7 +24,9 @@
           "defaultChannel": "price-alerts"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-splash-screen",
+      "expo-status-bar"
     ],
     "ios": {
       "supportsTablet": true,
@@ -30,7 +34,9 @@
       "buildNumber": "1",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"],
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
         "NSUserNotificationsUsageDescription": "This app uses notifications to send price alerts.",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
